@@ -2,6 +2,7 @@ package com.blog.demo.service;
 
 import java.util.List;
 
+import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Service;
 
 import com.blog.demo.client.PostsClient;
@@ -11,15 +12,31 @@ import com.blog.demo.repositories.PostRepository;
 
 @Service
 public class PostService {
-    private final PostsClient postsClient;
-    private final PostRepository postRepository;
+    private PostsClient postsClient;
+    private PostRepository postRepository;
+    private HistoryService historyService;
 
-    public PostService(PostsClient postsClient, PostRepository postRepository) {
+    public PostService(PostsClient postsClient, PostRepository postRepository,
+            HistoryService historyService) {
         this.postsClient = postsClient;
         this.postRepository = postRepository;
+        this.historyService = historyService;
     }
 
-    public void processPost(Long postId) {
+    public Post getPost(Long postId) {
+        // Encontra o post pelo ID
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new IllegalArgumentException("Post not found."));
+
+        // Verifica se o post está no estado ENABLED
+        if (post.getStatus() == PostStatus.ENABLED) {
+            return post;
+        } else {
+            throw new IllegalArgumentException("Post not found.");
+        }
+    }
+
+    public Post processPost(Long postId) {
         // Verifica se o postId é válido
         if (postId < 1 || postId > 100) {
             throw new IllegalArgumentException("Invalid postId.");
@@ -30,43 +47,46 @@ public class PostService {
             throw new IllegalArgumentException("Post already exists.");
         }
 
-        // Busca informações básicas do post da API externa
-        Post externalPost = postsClient.getPostById(postId);
+        Post post = postRepository.findById(postId).orElse(postsClient.getPostById(postId));
 
         // Salva o post no banco de dados com o estado CREATED
-        Post post = new Post();
-        post.setId(externalPost.getId());
-        post.setTitle(externalPost.getTitle());
-        post.setBody(externalPost.getBody());
-        post.getHistory().setStatus(PostStatus.CREATED);
+
+        post.setStatus(PostStatus.ENABLED);
         postRepository.save(post);
+        historyService.saveHistory(PostStatus.ENABLED, post);
+        return post;
     }
 
-    public void disablePost(Long postId) {
+    public Post disablePost(Long postId) {
         // Encontra o post pelo ID
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new IllegalArgumentException("Post not found."));
 
         // Verifica se o post está no estado ENABLED
-        if (post.getHistory().getStatus() == PostStatus.ENABLED) {
-            post.getHistory().setStatus(PostStatus.DISABLED);
-            postRepository.save(post);
+
+        if (post.getStatus() == PostStatus.ENABLED) {
+            post.setStatus(PostStatus.DISABLED);
+            historyService.saveHistory(PostStatus.DISABLED, post);
+            return postRepository.save(post);
         } else {
             throw new IllegalArgumentException("Post cannot be disabled.");
         }
+
     }
 
-    public void reprocessPost(Long postId) {
+    public Post reprocessPost(Long postId) {
         // Encontra o post pelo ID
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new IllegalArgumentException("Post not found."));
 
         // Verifica se o post está no estado ENABLED ou DISABLED
-        if (post.getHistory().getStatus() == PostStatus.ENABLED
-                || post.getHistory().getStatus() == PostStatus.DISABLED) {
+
+        if (post.getStatus() == PostStatus.ENABLED
+                || post.getStatus() == PostStatus.DISABLED) {
             // Atualiza o estado para UPDATING e inicia o processamento novamente
-            post.getHistory().setStatus(PostStatus.UPDATED);
-            postRepository.save(post);
+            post.setStatus(PostStatus.UPDATING);
+            historyService.saveHistory(PostStatus.UPDATING, post);
+            return postRepository.save(post);
 
             // Chamada para reprocessar o post
             // ... (coloque aqui a lógica de reprocessamento)
@@ -76,10 +96,10 @@ public class PostService {
         } else {
             throw new IllegalArgumentException("Post cannot be reprocessed.");
         }
+
     }
 
     public List<Post> getAllPosts() {
-        List<Post> posts = postRepository.findAll();
-        return posts;
+        return postRepository.findAll();
     }
 }

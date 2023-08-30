@@ -1,22 +1,42 @@
 package com.blog.demo.config;
 
-import org.springframework.context.annotation.Configuration;
-import org.springframework.scheduling.annotation.EnableScheduling;
-import org.springframework.scheduling.annotation.Scheduled;
+import java.util.List;
 
-import com.blog.demo.service.PostService;
+import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
-@Configuration
-@EnableScheduling
+import com.blog.demo.client.PostsClient;
+import com.blog.demo.enums.PostStatus;
+import com.blog.demo.model.Post;
+import com.blog.demo.repositories.PostRepository;
+import com.blog.demo.service.HistoryService;
+
+import jakarta.annotation.PostConstruct;
+
+@Component
 public class ScheduledTasks {
-  private final PostService postService;
+  private PostsClient postsClient;
+  private PostRepository postRepository;
+  private HistoryService historyService;
 
-  public ScheduledTasks(PostService postService) {
-    this.postService = postService;
+  public ScheduledTasks(PostsClient postsClient, PostRepository postRepository, HistoryService historyService) {
+    this.postsClient = postsClient;
+    this.postRepository = postRepository;
+    this.historyService = historyService;
   }
 
-  @Scheduled(fixedRate = 60000)
+  @PostConstruct()
   public void fetchPosts() {
-    postService.getAllPosts();
+    List<Post> posts = postsClient.getPosts();
+    try {
+      posts.forEach(post -> {
+        post.setStatus(PostStatus.ENABLED);
+        postRepository.save(post);
+        historyService.saveHistory(PostStatus.ENABLED, post);
+      });
+    } catch (Exception e) {
+      // TODO: handle exception
+      e.printStackTrace();
+    }
   }
 }

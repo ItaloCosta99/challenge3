@@ -8,6 +8,6 @@ public enum PostStatus {
   COMMENT_OK,
   ENABLED,
   DISABLED,
-  UPDATED,
+  UPDATING,
   FAILED
 }
