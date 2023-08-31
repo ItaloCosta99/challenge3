@@ -1,5 +1,6 @@
 package com.blog.demo.model;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.ManyToOne;
@@ -12,6 +13,7 @@ public class Comment {
   private Long id;
   private String name;
   private String email;
+  @Column(length = 500)
   private String body;
 
   @ManyToOne

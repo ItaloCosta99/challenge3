@@ -2,7 +2,8 @@ package com.blog.demo.service;
 
 import java.util.List;
 
-import org.modelmapper.ModelMapper;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import com.blog.demo.client.PostsClient;
@@ -12,6 +13,7 @@ import com.blog.demo.repositories.PostRepository;
 
 @Service
 public class PostService {
+    private static final String POST_NOT_FOUND = "Post not found.";
     private PostsClient postsClient;
     private PostRepository postRepository;
     private HistoryService historyService;
@@ -26,13 +28,13 @@ public class PostService {
     public Post getPost(Long postId) {
         // Encontra o post pelo ID
         Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new IllegalArgumentException("Post not found."));
+                .orElseThrow(() -> new IllegalArgumentException(POST_NOT_FOUND));
 
         // Verifica se o post está no estado ENABLED
         if (post.getStatus() == PostStatus.ENABLED) {
             return post;
         } else {
-            throw new IllegalArgumentException("Post not found.");
+            throw new IllegalArgumentException(POST_NOT_FOUND);
         }
     }
 
@@ -48,6 +50,8 @@ public class PostService {
         }
 
         Post post = postRepository.findById(postId).orElse(postsClient.getPostById(postId));
+        historyService.saveHistory(PostStatus.POST_FIND, post);
+        historyService.saveHistory(PostStatus.POST_OK, post);
 
         // Salva o post no banco de dados com o estado CREATED
 
@@ -60,7 +64,7 @@ public class PostService {
     public Post disablePost(Long postId) {
         // Encontra o post pelo ID
         Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new IllegalArgumentException("Post not found."));
+                .orElseThrow(() -> new IllegalArgumentException(POST_NOT_FOUND));
 
         // Verifica se o post está no estado ENABLED
 
@@ -77,7 +81,7 @@ public class PostService {
     public Post reprocessPost(Long postId) {
         // Encontra o post pelo ID
         Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new IllegalArgumentException("Post not found."));
+                .orElseThrow(() -> new IllegalArgumentException(POST_NOT_FOUND));
 
         // Verifica se o post está no estado ENABLED ou DISABLED
 
@@ -101,5 +105,9 @@ public class PostService {
 
     public List<Post> getAllPosts() {
         return postRepository.findAll();
+    }
+
+    public Page<Post> getPostsWithPageList(int pageNum, int pageSize) {
+        return postRepository.findAll(PageRequest.of(pageNum, pageSize));
     }
 }
