@@ -6,7 +6,6 @@ import org.springframework.stereotype.Component;
 
 import com.blog.demo.client.PostsClient;
 import com.blog.demo.enums.PostStatus;
-import com.blog.demo.model.Comment;
 import com.blog.demo.model.Post;
 import com.blog.demo.repositories.PostRepository;
 import com.blog.demo.service.CommentService;
@@ -33,7 +32,6 @@ public class ScheduledTasks {
     List<Post> posts = postsClient.getPosts();
     try {
       posts.forEach(post -> {
-        post.setStatus(PostStatus.CREATED);
         postRepository.save(post);
         historyService.saveHistory(PostStatus.CREATED, post);
         historyService.saveHistory(PostStatus.POST_FIND, post);

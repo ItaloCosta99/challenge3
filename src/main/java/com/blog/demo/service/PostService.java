@@ -90,6 +90,7 @@ public class PostService {
             // Atualiza o estado para UPDATING e inicia o processamento novamente
             post.setStatus(PostStatus.UPDATING);
             historyService.saveHistory(PostStatus.UPDATING, post);
+            historyService.saveHistory(PostStatus.ENABLED, post);
             return postRepository.save(post);
 
             // Chamada para reprocessar o post
